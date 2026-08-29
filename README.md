@@ -3,7 +3,7 @@
 ![Automation First Aid cover](assets/cover.png)
 
 無料配布: BOOTH / GitHub Release / あませのサイト
-- BOOTH: https://amase-memo.booth.pm/items/8778419
+- BOOTH: https://amase-memo.booth.pm/items/8778419items/8778419
 - Release: https://github.com/paper-daemon/automation-first-aid/releases/tag/v1.0.0
 - Site: https://paper-daemon.github.io/
 
