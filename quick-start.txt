@@ -1,0 +1,13 @@
+Automation First Aid / 自動化の救急箱
+
+1) Python 3.10+ を用意
+2) このフォルダで以下を実行
+
+  python3 automation_first_aid.py doctor
+
+よく使う例:
+  python3 automation_first_aid.py retry --text "connection reset by peer"
+  python3 automation_first_aid.py jsoncheck logs.jsonl
+  python3 automation_first_aid.py systemd-user --unit my-worker.service
+
+設定変更や再起動は勝手に行いません。診断専用です。
