@@ -1,5 +1,13 @@
 # Automation First Aid 🧰
 
+![Automation First Aid cover](assets/cover.png)
+
+無料配布: BOOTH / GitHub Release / あませのサイト
+- BOOTH: https://amase-memo.booth.pm/items/8778419
+- Release: https://github.com/paper-daemon/automation-first-aid/releases/tag/v1.0.0
+- Site: https://paper-daemon.github.io/
+
+
 自動化がコケた時に、最初の10分でやる切り分けを1本にまとめた無料CLIです。Python 3.10+、外部依存なし。
 
 ## できること
