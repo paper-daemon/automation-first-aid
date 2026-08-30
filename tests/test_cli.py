@@ -32,6 +32,24 @@ class TestFirstAid(unittest.TestCase):
         row = next(x for x in rows if x["check"] == "url")
         self.assertTrue(row["ok"]); self.assertEqual(H.get_calls, 1)
         self.assertIn("GET fallback after HEAD 405", row["detail"])
+    def test_url_head_403_falls_back_to_get(self):
+        class H(BaseHTTPRequestHandler):
+            get_calls = 0
+            def do_HEAD(self):
+                self.send_response(403); self.end_headers()
+            def do_GET(self):
+                type(self).get_calls += 1
+                self.send_response(200); self.end_headers()
+            def log_message(self, *_): pass
+        server = HTTPServer(("127.0.0.1", 0), H)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            rows = doctor(".", f"http://127.0.0.1:{server.server_port}/", False)
+        finally:
+            server.shutdown(); thread.join(timeout=2); server.server_close()
+        row = next(x for x in rows if x["check"] == "url")
+        self.assertTrue(row["ok"]); self.assertEqual(H.get_calls, 1)
+        self.assertIn("GET fallback after HEAD 403", row["detail"])
     def test_url_head_404_does_not_fall_back(self):
         class H(BaseHTTPRequestHandler):
             get_calls = 0
