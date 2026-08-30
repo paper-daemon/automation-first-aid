@@ -40,3 +40,7 @@ python3 automation_first_aid.py --json doctor
 MIT
 
 - URL診断はHEADが405/501で拒否された時だけGETへfallbackし、HEAD非対応サイトを誤って故障扱いしません。404/403はそのまま失敗扱いです。
+
+### JSON validation boundary
+
+`jsoncheck` は標準JSONとして検証し、Pythonの拡張である `NaN` / `Infinity` / `-Infinity` はvalid扱いしません。JSONLでも該当行をエラーとして返します。
