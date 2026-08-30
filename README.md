@@ -40,6 +40,7 @@ python3 automation_first_aid.py --json doctor
 MIT
 
 - URL診断はHEADが403/405/501で拒否された時だけGETへfallbackし、HEADだけ拒否するサイトを誤って故障扱いしません。404など通常の失敗はそのまま失敗扱いです。
+- URL診断にcredential付きURLやsigned URLを渡しても、実際のrequest先は変更せず、結果ログへ出すURLだけuserinfoとtoken/secret/password/api key/signature系query値を伏せます。
 
 ### JSON validation boundary
 
