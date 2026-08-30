@@ -34,5 +34,7 @@ python3 automation_first_aid.py --json doctor
 ## 方針
 診断専用です。設定変更、サービス再起動、ファイル修復は自動実行しません。まず壊れている場所を見つけるための救急箱です。
 
+- [成功済み処理をログの古いエラー文字だけで再試行しない](docs/retry-success-boundary.md)
+
 ## License
 MIT
