@@ -41,7 +41,21 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
             with urlopen(req, timeout=8) as r:
                 out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {url}"))
         except HTTPError as e:
-            out.append(result("url", False, f"HTTP {e.code} {url}"))
+            code = e.code
+            e.close()
+            if code in {405, 501}:
+                try:
+                    req = Request(url, method="GET", headers={"User-Agent": "Automation-First-Aid/1.0"})
+                    with urlopen(req, timeout=8) as r:
+                        out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {url} (GET fallback after HEAD {code})"))
+                except HTTPError as ge:
+                    get_code = ge.code
+                    ge.close()
+                    out.append(result("url", False, f"HTTP {get_code} {url} (GET fallback after HEAD {code})"))
+                except URLError as ge:
+                    out.append(result("url", False, f"{url}: {ge.reason} (GET fallback after HEAD {code})"))
+            else:
+                out.append(result("url", False, f"HTTP {code} {url}"))
         except URLError as e:
             out.append(result("url", False, f"{url}: {e.reason}"))
     if sys.platform.startswith("linux") and shutil.which("systemctl"):
