@@ -3,7 +3,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from automation_first_aid import doctor, retry_decision, validate_json
+from automation_first_aid import doctor, retry_decision, validate_json, display_url
 
 class TestFirstAid(unittest.TestCase):
     def test_retry_transient(self):
@@ -68,6 +68,14 @@ class TestFirstAid(unittest.TestCase):
         row = next(x for x in rows if x["check"] == "url")
         self.assertFalse(row["ok"]); self.assertEqual(H.get_calls, 0)
         self.assertIn("HTTP 404", row["detail"])
+    def test_display_url_redacts_userinfo_and_secret_query_values(self):
+        safe = display_url("https://alice:supersecret@example.com/path?token=abc&mode=ro&X-Amz-Signature=signed")
+        self.assertNotIn("alice", safe)
+        self.assertNotIn("supersecret", safe)
+        self.assertNotIn("token=abc", safe)
+        self.assertNotIn("signed", safe)
+        self.assertIn("%3Credacted%3E", safe)
+        self.assertIn("mode=ro", safe)
     def test_jsonl_error_line(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "x.jsonl"
