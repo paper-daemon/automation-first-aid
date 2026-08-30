@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse, json, os, platform, shutil, socket, subprocess, sys
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -15,9 +16,35 @@ PERMANENT = (
     "permission denied", "unauthorized", "forbidden", "invalid token", "bad credentials",
     "not found", "no such file", "syntax error", "invalid argument", "unsupported",
 )
+URL_SECRET_KEYS = (
+    "token", "secret", "password", "passwd", "api_key", "apikey", "key",
+    "authorization", "auth", "cookie", "credential", "signature", "sig",
+    "x-amz-signature", "x-goog-signature", "access_token",
+)
 
 def result(name: str, ok: bool, detail: str) -> dict:
     return {"check": name, "ok": bool(ok), "detail": detail}
+
+def _secret_query_key(key: str) -> bool:
+    low = key.lower().replace("-", "_")
+    return any(x.replace("-", "_") in low for x in URL_SECRET_KEYS)
+
+def display_url(url: str) -> str:
+    """Return a log-safe URL while leaving the actual request URL untouched."""
+    try:
+        p = urlsplit(url)
+    except ValueError:
+        return "<invalid-url>"
+    host = p.hostname or ""
+    if p.port is not None:
+        host += f":{p.port}"
+    if p.username is not None or p.password is not None:
+        host = "<redacted>@" + host
+    query = urlencode([
+        (k, "<redacted>" if _secret_query_key(k) else v)
+        for k, v in parse_qsl(p.query, keep_blank_values=True)
+    ])
+    return urlunsplit((p.scheme, host, p.path, query, p.fragment))
 
 def doctor(path: str, url: str | None, network: bool) -> list[dict]:
     out = []
@@ -36,10 +63,11 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
         except OSError as e:
             out.append(result("dns", False, str(e)))
     if url:
+        safe_url = display_url(url)
         try:
             req = Request(url, method="HEAD", headers={"User-Agent": "Automation-First-Aid/1.0"})
             with urlopen(req, timeout=8) as r:
-                out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {url}"))
+                out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {safe_url}"))
         except HTTPError as e:
             code = e.code
             e.close()
@@ -47,17 +75,17 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
                 try:
                     req = Request(url, method="GET", headers={"User-Agent": "Automation-First-Aid/1.0"})
                     with urlopen(req, timeout=8) as r:
-                        out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {url} (GET fallback after HEAD {code})"))
+                        out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {safe_url} (GET fallback after HEAD {code})"))
                 except HTTPError as ge:
                     get_code = ge.code
                     ge.close()
-                    out.append(result("url", False, f"HTTP {get_code} {url} (GET fallback after HEAD {code})"))
+                    out.append(result("url", False, f"HTTP {get_code} {safe_url} (GET fallback after HEAD {code})"))
                 except URLError as ge:
-                    out.append(result("url", False, f"{url}: {ge.reason} (GET fallback after HEAD {code})"))
+                    out.append(result("url", False, f"{safe_url}: {ge.reason} (GET fallback after HEAD {code})"))
             else:
-                out.append(result("url", False, f"HTTP {code} {url}"))
+                out.append(result("url", False, f"HTTP {code} {safe_url}"))
         except URLError as e:
-            out.append(result("url", False, f"{url}: {e.reason}"))
+            out.append(result("url", False, f"{safe_url}: {e.reason}"))
     if sys.platform.startswith("linux") and shutil.which("systemctl"):
         cp = subprocess.run(["systemctl", "--user", "is-system-running"], text=True, capture_output=True, timeout=5)
         state = (cp.stdout or cp.stderr).strip() or f"exit={cp.returncode}"
