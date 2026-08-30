@@ -43,7 +43,7 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
         except HTTPError as e:
             code = e.code
             e.close()
-            if code in {405, 501}:
+            if code in {403, 405, 501}:
                 try:
                     req = Request(url, method="GET", headers={"User-Agent": "Automation-First-Aid/1.0"})
                     with urlopen(req, timeout=8) as r:
