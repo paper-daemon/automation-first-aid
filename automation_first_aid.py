@@ -75,6 +75,13 @@ def retry_decision(text: str, exit_code: int | None) -> dict:
         return {"decision": "RETRY_WITH_BACKOFF", "reason": "transient/network/resource-like error"}
     return {"decision": "REVIEW", "reason": "unknown failure; inspect before retrying"}
 
+
+def _reject_json_constant(value: str):
+    raise ValueError(f"non-standard JSON numeric constant: {value}")
+
+def strict_json_loads(text: str):
+    return json.loads(text, parse_constant=_reject_json_constant)
+
 def validate_json(path: str) -> dict:
     p = Path(path)
     if not p.exists():
@@ -85,16 +92,20 @@ def validate_json(path: str) -> dict:
             if not line.strip():
                 continue
             try:
-                json.loads(line)
+                strict_json_loads(line)
                 good += 1
             except json.JSONDecodeError as e:
                 return {"ok": False, "path": str(p), "line": n, "column": e.colno, "error": e.msg, "good_lines": good}
+            except ValueError as e:
+                return {"ok": False, "path": str(p), "line": n, "error": str(e), "good_lines": good}
         return {"ok": True, "path": str(p), "valid_lines": good, "format": "jsonl"}
     try:
-        obj = json.loads(p.read_text(encoding="utf-8"))
+        obj = strict_json_loads(p.read_text(encoding="utf-8"))
         return {"ok": True, "path": str(p), "format": "json", "type": type(obj).__name__}
     except json.JSONDecodeError as e:
         return {"ok": False, "path": str(p), "line": e.lineno, "column": e.colno, "error": e.msg}
+    except ValueError as e:
+        return {"ok": False, "path": str(p), "error": str(e)}
 
 def systemd_user(unit: str | None) -> list[dict]:
     if not sys.platform.startswith("linux") or not shutil.which("systemctl"):
