@@ -56,4 +56,19 @@ class TestFirstAid(unittest.TestCase):
             p.write_text("{\"a\":1}\n{bad}\n", encoding="utf-8")
             r = validate_json(str(p))
             self.assertFalse(r["ok"]); self.assertEqual(r["line"], 2)
+    def test_non_standard_numeric_constants_are_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            for token in ("NaN", "Infinity", "-Infinity"):
+                p = Path(d) / "x.json"
+                p.write_text('{"value": '+token+'}', encoding="utf-8")
+                r = validate_json(str(p))
+                self.assertFalse(r["ok"], token)
+                self.assertIn("non-standard JSON numeric constant", r["error"])
+
+    def test_jsonl_non_standard_numeric_constant_reports_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "x.jsonl"
+            p.write_text('{"a":1}\n{"value":Infinity}\n', encoding="utf-8")
+            r = validate_json(str(p))
+            self.assertFalse(r["ok"]); self.assertEqual(r["line"], 2); self.assertEqual(r["good_lines"], 1)
 if __name__ == "__main__": unittest.main()
