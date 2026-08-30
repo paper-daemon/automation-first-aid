@@ -52,13 +52,13 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
     return out
 
 def retry_decision(text: str, exit_code: int | None) -> dict:
+    if exit_code == 0:
+        return {"decision": "NO_RETRY", "reason": "exit code is 0"}
     low = text.lower()
     if any(x in low for x in PERMANENT):
         return {"decision": "STOP_AND_FIX", "reason": "permanent/configuration-like error"}
     if any(x in low for x in RETRYABLE) or exit_code in (75, 111, 124, 137, 143):
         return {"decision": "RETRY_WITH_BACKOFF", "reason": "transient/network/resource-like error"}
-    if exit_code == 0:
-        return {"decision": "NO_RETRY", "reason": "exit code is 0"}
     return {"decision": "REVIEW", "reason": "unknown failure; inspect before retrying"}
 
 def validate_json(path: str) -> dict:
