@@ -39,7 +39,7 @@ python3 automation_first_aid.py --json doctor
 ## License
 MIT
 
-- URL診断はHEADが405/501で拒否された時だけGETへfallbackし、HEAD非対応サイトを誤って故障扱いしません。404/403はそのまま失敗扱いです。
+- URL診断はHEADが403/405/501で拒否された時だけGETへfallbackし、HEADだけ拒否するサイトを誤って故障扱いしません。404など通常の失敗はそのまま失敗扱いです。
 
 ### JSON validation boundary
 
