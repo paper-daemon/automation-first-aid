@@ -1,22 +1,15 @@
 # Automation First Aid 🧰
 
+**Dependency-free first-response diagnostics for broken automations.**
+
+Automation First Aid is a small Python CLI for the first 10 minutes after a workflow, worker, API integration, or local automation starts behaving strangely. It helps answer four questions quickly: Is the environment healthy? Is the input JSON valid? Is the failure safe to retry? Is the Linux user service actually running?
+
+> 日本語: 自動化がコケた時の最初の切り分けを、設定変更なしで行う無料CLIです。Python 3.10+、外部依存なし。
+
 ![Automation First Aid cover](assets/cover.png)
 
-無料配布: BOOTH / GitHub Release / あませのサイト
-- BOOTH: https://amase-memo.booth.pm/items/8778532
-- Release: https://github.com/paper-daemon/automation-first-aid/releases/tag/v1.0.0
-- Site: https://paper-daemon.github.io/
+## Quick start
 
-
-自動化がコケた時に、最初の10分でやる切り分けを1本にまとめた無料CLIです。Python 3.10+、外部依存なし。
-
-## できること
-- `doctor`: Python / 書き込み権限 / 空き容量 / DNS / URL / systemd user manager を確認
-- `retry`: エラー文を「再試行」「止めて修正」「要確認」に分類
-- `jsoncheck`: JSON / JSONL の壊れた行・列を表示
-- `systemd-user`: Linux の `systemd --user` と任意unitを確認
-
-## 使い方
 ```bash
 python3 automation_first_aid.py doctor
 python3 automation_first_aid.py doctor --network --url https://example.com
@@ -25,23 +18,114 @@ python3 automation_first_aid.py jsoncheck logs.jsonl
 python3 automation_first_aid.py systemd-user --unit my-worker.service
 ```
 
-JSONで機械処理したい時は先頭に `--json` を付けます。
+Use JSON output for another tool or monitor:
 
 ```bash
 python3 automation_first_aid.py --json doctor
 ```
 
-## 方針
-診断専用です。設定変更、サービス再起動、ファイル修復は自動実行しません。まず壊れている場所を見つけるための救急箱です。
+## CI / monitoring mode
 
-- [成功済み処理をログの古いエラー文字だけで再試行しない](docs/retry-success-boundary.md)
+By default the CLI is diagnostic and exits successfully after printing its result. Add `--strict-exit` when another process needs a stable failure signal:
 
-## License
-MIT
+```bash
+python3 automation_first_aid.py --strict-exit jsoncheck payload.jsonl
+python3 automation_first_aid.py --strict-exit doctor --network --url https://example.com/health
+python3 automation_first_aid.py --strict-exit retry --text "permission denied" --exit-code 1
+```
 
-- URL診断はHEADが403/405/501で拒否された時だけGETへfallbackし、HEADだけ拒否するサイトを誤って故障扱いしません。404など通常の失敗はそのまま失敗扱いです。
-- URL診断にcredential付きURLやsigned URLを渡しても、実際のrequest先は変更せず、結果ログへ出すURLだけuserinfoとtoken/secret/password/api key/signature系query値を伏せます。
+With `--strict-exit`, exit code `1` is returned when:
 
-### JSON validation boundary
+- a `doctor` or `systemd-user` check is NG;
+- `jsoncheck` finds invalid JSON / JSONL;
+- `retry` returns `STOP_AND_FIX` or `REVIEW`.
 
-`jsoncheck` は標準JSONとして検証し、Pythonの拡張である `NaN` / `Infinity` / `-Infinity` はvalid扱いしません。JSONLでも該当行をエラーとして返します。
+A transient failure classified as `RETRY_WITH_BACKOFF` does **not** fail strict mode. The tool reports that retry is a reasonable next action instead of pretending the underlying system is permanently broken.
+
+## Commands
+
+### `doctor`
+Checks:
+
+- Python 3.10+;
+- target path existence and write access;
+- at least 1 GiB free disk space;
+- optional DNS resolution;
+- optional HTTP(S) endpoint response;
+- Linux `systemd --user` manager health when available.
+
+HEAD requests fall back to GET only when the endpoint rejects HEAD with 403, 405, or 501. A real 404 remains a failure.
+
+### `retry`
+Classifies an observed error into:
+
+- `NO_RETRY` — the process already exited successfully;
+- `RETRY_WITH_BACKOFF` — transient/network/resource-like failure;
+- `STOP_AND_FIX` — permanent/configuration-like failure;
+- `REVIEW` — unknown failure that should be inspected before retrying.
+
+A successful exit code wins over stale error words in logs. This helps avoid repeating an external effect just because an earlier attempt emitted a scary line. See [`docs/retry-success-boundary.md`](docs/retry-success-boundary.md).
+
+### `jsoncheck`
+Validates JSON or JSONL and reports the failing line/column where possible. Non-standard numeric constants such as `NaN`, `Infinity`, and `-Infinity` are rejected.
+
+### `systemd-user`
+Checks the Linux user manager and, optionally, whether a specific user unit is active and enabled.
+
+## Safety boundaries
+
+Automation First Aid is deliberately **diagnostic-only**.
+
+It does not:
+
+- restart services;
+- rewrite configuration;
+- repair files;
+- delete data;
+- automatically replay failed external actions.
+
+That boundary is intentional. The tool should make the next decision safer, not create a second incident while diagnosing the first.
+
+## URL privacy
+
+When URL diagnostics are used, the real request URL is left unchanged but the displayed/logged URL is sanitized:
+
+- username/password userinfo is redacted;
+- token, secret, password, API-key, authorization, cookie, credential, signature and similar query values are redacted;
+- malformed port syntax is rendered as `<invalid-url>` instead of leaking or crashing the diagnostic path.
+
+## Example CI step
+
+```yaml
+- name: Validate generated JSONL
+  run: python automation_first_aid.py --strict-exit jsoncheck build/events.jsonl
+
+- name: Probe service health
+  run: python automation_first_aid.py --strict-exit doctor --network --url https://example.com/health
+```
+
+## Test suite
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Regression coverage includes retry classification, successful-final-state precedence, HEAD→GET fallback boundaries, credential-safe URL display, malformed URLs, strict JSON validation, and strict process-exit behavior.
+
+## Good fits
+
+- n8n / Zapier / Make-style workflow support
+- long-running workers and scheduled jobs
+- webhook and API integration diagnostics
+- JSON/JSONL content pipelines
+- Linux user-service triage
+- preflight checks before an automated retry loop
+
+## Distribution
+
+- GitHub: https://github.com/paper-daemon/automation-first-aid
+- BOOTH: https://amase-memo.booth.pm/items/8778532
+- Release: https://github.com/paper-daemon/automation-first-aid/releases/tag/v1.0.0
+- Builder portfolio: https://paper-daemon.github.io/global.html
+
+Python 3.10+ / standard library only / MIT License.
