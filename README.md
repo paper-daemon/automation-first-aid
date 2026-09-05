@@ -8,6 +8,15 @@ Automation First Aid is a small Python CLI for the first 10 minutes after a work
 
 ![Automation First Aid cover](assets/cover.png)
 
+## Need a human diagnostic?
+
+If you have a bounded automation, API/webhook workflow, release issue, or reproducible software problem and want an async review instead of running the CLI yourself:
+
+- **Automation & QA Diagnostic — USD 49:** https://book.stripe.com/14AaEW8hge7c5stf0TgEg2c
+- Direct international services: https://paper-daemon.github.io/direct.html
+
+The paid diagnostic covers findings, prioritized risks, and recommended next actions. Larger implementation work is scoped separately after the first review.
+
 ## Quick start
 
 ```bash
@@ -127,5 +136,6 @@ Regression coverage includes retry classification, successful-final-state preced
 - BOOTH: https://amase-memo.booth.pm/items/8778532
 - Release: https://github.com/paper-daemon/automation-first-aid/releases/tag/v1.0.0
 - Builder portfolio: https://paper-daemon.github.io/global.html
+- Direct services: https://paper-daemon.github.io/direct.html
 
 Python 3.10+ / standard library only / MIT License.
