@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased
-- `doctor --url` の結果ログで、URL userinfo と token/secret/password/api key/signature 系query値を伏せる。
-- 実際のrequest先は変更せず、表示用URLだけを安全化。
-- credential付きURL / signed URL の回帰テストを追加。
+## 1.1.0
+- Add `--strict-exit` so CI and monitoring can receive exit code 1 for actionable diagnostic failures.
+- Keep transient `RETRY_WITH_BACKOFF` outcomes non-failing in strict mode while `STOP_AND_FIX` and `REVIEW` fail.
+- Harden malformed URL handling so invalid port syntax is reported safely rather than crashing the display path.
+- Redact URL userinfo and token/secret/password/API-key/signature-like query values in diagnostic output while leaving the actual request target unchanged.
+- Add regression coverage for strict exit behavior, retry policy, malformed URLs, signed URLs, and strict JSON validation.
+- Expand English-first operational documentation and CI examples.
 
 ## 1.0.0 - 2026-08-29
-- 環境・空き容量・任意ネットワーク診断
-- エラー文から再試行可否を分類
-- JSON / JSONL の破損位置チェック
-- Linux systemd --user 診断
-- JSON出力対応
+- Environment, disk-space, and optional network diagnostics.
+- Retry-safety classification from error text and exit status.
+- JSON / JSONL failure-position checks.
+- Linux `systemd --user` diagnostics.
+- JSON output mode.
