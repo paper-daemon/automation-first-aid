@@ -33,11 +33,12 @@ def display_url(url: str) -> str:
     """Return a log-safe URL while leaving the actual request URL untouched."""
     try:
         p = urlsplit(url)
+        port = p.port
     except ValueError:
         return "<invalid-url>"
     host = p.hostname or ""
-    if p.port is not None:
-        host += f":{p.port}"
+    if port is not None:
+        host += f":{port}"
     if p.username is not None or p.password is not None:
         host = "<redacted>@" + host
     query = urlencode([
@@ -65,15 +66,17 @@ def doctor(path: str, url: str | None, network: bool) -> list[dict]:
     if url:
         safe_url = display_url(url)
         try:
-            req = Request(url, method="HEAD", headers={"User-Agent": "Automation-First-Aid/1.0"})
+            req = Request(url, method="HEAD", headers={"User-Agent": "Automation-First-Aid/1.1"})
             with urlopen(req, timeout=8) as r:
                 out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {safe_url}"))
+        except (ValueError, TypeError) as e:
+            out.append(result("url", False, f"{safe_url}: invalid URL ({e})"))
         except HTTPError as e:
             code = e.code
             e.close()
             if code in {403, 405, 501}:
                 try:
-                    req = Request(url, method="GET", headers={"User-Agent": "Automation-First-Aid/1.0"})
+                    req = Request(url, method="GET", headers={"User-Agent": "Automation-First-Aid/1.1"})
                     with urlopen(req, timeout=8) as r:
                         out.append(result("url", 200 <= r.status < 400, f"HTTP {r.status} {safe_url} (GET fallback after HEAD {code})"))
                 except HTTPError as ge:
@@ -102,7 +105,6 @@ def retry_decision(text: str, exit_code: int | None) -> dict:
     if any(x in low for x in RETRYABLE) or exit_code in (75, 111, 124, 137, 143):
         return {"decision": "RETRY_WITH_BACKOFF", "reason": "transient/network/resource-like error"}
     return {"decision": "REVIEW", "reason": "unknown failure; inspect before retrying"}
-
 
 def _reject_json_constant(value: str):
     raise ValueError(f"non-standard JSON numeric constant: {value}")
@@ -154,6 +156,17 @@ def systemd_user(unit: str | None) -> list[dict]:
             out.append(result(name, False, str(e)))
     return out
 
+def diagnostic_failed(cmd: str, data) -> bool:
+    """Map human-readable diagnostics to a stable process failure signal."""
+    if cmd in {"doctor", "systemd-user"}:
+        rows = data if isinstance(data, list) else [data]
+        return any(row.get("ok") is False for row in rows)
+    if cmd == "jsoncheck":
+        return data.get("ok") is False
+    if cmd == "retry":
+        return data.get("decision") in {"STOP_AND_FIX", "REVIEW"}
+    return False
+
 def dump(data, as_json: bool):
     if as_json:
         print(json.dumps(data, ensure_ascii=False, indent=2))
@@ -169,6 +182,7 @@ def dump(data, as_json: bool):
 def build_parser():
     p = argparse.ArgumentParser(prog="automation-first-aid", description="自動化トラブルの最初の切り分けを依存ゼロで。")
     p.add_argument("--json", action="store_true", help="JSONで出力")
+    p.add_argument("--strict-exit", action="store_true", help="診断上のNG/要修正をexit code 1で返す")
     sub = p.add_subparsers(dest="cmd", required=True)
     d = sub.add_parser("doctor", help="環境・ディスク・任意ネットワークを診断")
     d.add_argument("--path", default=".")
@@ -190,6 +204,9 @@ def main():
     elif args.cmd == "jsoncheck": data = validate_json(args.path)
     else: data = systemd_user(args.unit)
     dump(data, args.json)
+    if args.strict_exit and diagnostic_failed(args.cmd, data):
+        return 1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
