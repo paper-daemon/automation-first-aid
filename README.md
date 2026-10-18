@@ -17,6 +17,10 @@ If you have a bounded automation, API/webhook workflow, release issue, or reprod
 
 The paid diagnostic covers findings, prioritized risks, and recommended next actions. Larger implementation work is scoped separately after the first review.
 
+## Quick n8n workflow scan
+
+For exported n8n workflow JSON, the [free n8n Retry & Duplicate Risk Checker](https://paper-daemon.github.io/n8n-retry-checker/) flags possible webhook replay, non-idempotent retries, and silent-failure risks. Everything runs in the browser, with no file upload. It provides preliminary findings, not live validation or automated remediation.
+
 ## Quick start
 
 ```bash
